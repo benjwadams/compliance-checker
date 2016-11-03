@@ -62,4 +62,8 @@ STATIC_FILES = {
     'trajectory-profile-incomplete'        : get_filename('tests/data/trajectory-profile-incomplete.cdl'),
     '2d-regular-grid'                      : get_filename('tests/data/2d-regular-grid.cdl'),
     '3d-regular-grid'                      : get_filename('tests/data/3d-regular-grid.cdl'),
+    'grid-boundaries'                      : get_filename('tests/data/grid-boundaries.cdl'),
+    'ncei_gold_point_1'                    : get_filename('tests/data/ncei_gold_point_1.cdl'),
+    'ncei_gold_point_2'                    : get_filename('tests/data/ncei_gold_point_2.cdl'),
+    'ghrsst'                               : get_filename('tests/data/20160919092000-ABOM-L3S_GHRSST-SSTfnd-AVHRR_D-1d_dn.cdl'),
 }
