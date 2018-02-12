@@ -100,11 +100,14 @@ class ComplianceChecker(object):
         @param limit        The degree of strictness, 1 being the strictest, and going up from there.
         '''
 
-        for checker, rpair in score_groups.items():
-            groups, errors = rpair
-            score_list, points, out_of = cs.standard_output(limit, checker, groups)
+        #for checker, (groups, errors) in score_groups.items():
+        for checker, (groups, errors) in score_groups.items():
+            #groups, errors = rpair
+            score_list, points, out_of = cs.standard_output(limit, checker,
+                                                            groups)
             if not verbose:
-                cs.non_verbose_output_generation(score_list, groups, limit, points, out_of)
+                cs.non_verbose_output_generation(score_list, groups, limit,
+                                                 points, out_of)
             else:
                 cs.verbose_output_generation(groups, limit, points, out_of)
         return groups

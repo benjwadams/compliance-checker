@@ -310,7 +310,7 @@ class CheckSuite(object):
 
         for g in groups:
             score_list.append([g.name, g.weight, g.value, g.children])
-            if g.weight >= limit:
+            if g.weight >= limit and g.value[0] < g.value[1]:
                 score_only_list.append(g.value)
 
         points = [x[0] for x in score_only_list]
@@ -319,9 +319,15 @@ class CheckSuite(object):
         points = sum(points)
         out_of = sum(out_of)
         # sorts lists into high/medium/low order
-        score_list.sort(key=lambda x: x[1], reverse=True)
+        sort_fn = lambda x: x[1]
+        score_list.sort(key=sort_fn, reverse=True)
+        result = {key: list((v[0], v[2][0] < v[2][1], v[3])
+                             for v in valuesiter if v[2][0] < v[2][1] )
+                    for key, valuesiter in itertools.groupby(score_list,
+                                                             key=sort_fn)}
 
-        return score_list, points, out_of
+        #return score_list, points, out_of
+        return result, points, out_of
 
     def standard_output(self, limit, check_name, groups):
         """
@@ -330,9 +336,11 @@ class CheckSuite(object):
         Returns the dataset needed for the verbose output, as well as the failure flags.
         """
         score_list, points, out_of = self.get_points(groups, limit)
+        issue_count = sum(len(s) for s in score_list.values())
         print('\n')
         print("-" * 80)
-        print('{:^80}'.format("The dataset scored %r out of %r points" % (points, out_of)))
+        #print('{:^80}'.format("The dataset scored %r out of %r points" % (points, out_of)))
+        print("The dataset has {} potential issue(s) discovered".format(issue_count))
         print('{:^80}'.format("during the %s check" % check_name))
         print("-" * 80)
 
@@ -343,61 +351,22 @@ class CheckSuite(object):
         if points < out_of:
             print('{:^80}'.format("Scoring Breakdown:"))
             print('\n')
+            # handle high priority
+            priorities = {3: 'High Priority',
+                          2: 'Medium Priority',
+                          1: 'Low Priority'}
             priority_flag = 3
-            for x in range(len(score_list)):
-                if score_list[x][1] == 3 and limit <= 3:
-                    if priority_flag == 3:
-                        print('{:^80}'.format("High Priority"))
-                        print("-" * 80)
-                        print('%-36s:%8s:%6s' % ('    Name', 'Priority', 'Score'))
-                        priority_flag -= 1
-                    print('%-40s:%s:%6s/%1s' % (score_list[x][0][0:39], score_list[x][1], score_list[x][2][0], score_list[x][2][1]))
-
-                elif score_list[x][1] == 2 and limit <= 2:
-                    if priority_flag == 2:
-                        print('\n')
-                        print('{:^80}'.format("Medium Priority"))
-                        print("-" * 80)
-                        print('%-36s:%8s:%6s' % ('    Name', 'Priority', 'Score'))
-                        priority_flag -= 1
-                    print('%-40s:%s:%6s/%1s' % (score_list[x][0][0:39], score_list[x][1], score_list[x][2][0], score_list[x][2][1]))
-
-                elif score_list[x][1] == 1 and limit == 1:
-                    if priority_flag == 1:
-                        print('\n')
-                        print('{:^80}'.format("Low Priority"))
-                        print("-" * 80)
-                        print('%-36s:%8s:%6s' % ('    Name', 'Priority', 'Score'))
-                        priority_flag -= 1
-                    print('%-40s:%s:%6s/%1s' % (score_list[x][0][0:39], score_list[x][1], score_list[x][2][0], score_list[x][2][1]))
-
-                elif score_list[x][1] == 1 and limit == 1 and priority_flag == 2:
-                    print('{:^80}'.format('No medium priority tests present'))
-                    print('-' * 80)
-                    priority_flag -= 1
-            # Catch All for pretty presentation
-            if priority_flag == 2 and limit == 2:
-                print('{:^80}'.format('No Medium priority tests present'))
-                print('-' * 80)
-
-            if priority_flag == 2 and limit == 1:
-                print('{:^80}'.format('No Medium priority tests present'))
-                print('-' * 80)
-                print('')
-                print('{:^80}'.format('No Low priority tests present'))
-                print('-' * 80)
-
-            if priority_flag == 1 and limit == 1:
-                print('{:^80}'.format('No Low priority tests present'))
-                print('-' * 80)
-
-            print("\n" + "\n" + '-' * 80)
-            print('{:^80}'.format('Reasoning for the failed tests given below:'))
-            print('\n')
-            print('%s%37s:%10s:%8s' % ('Name', 'Priority', '  Score', 'Reasoning'))
-            print("-" * 80)
-            self.reasoning_routine(groups, 0)
-
+            print(limit)
+            for level in range(3,limit-1,-1):
+                level_name = priorities.get(level, level)
+                print('{:^80}'.format(level_name))
+                print("-" * 80)
+                print('%-36s:%8s:%6s' % ('    Name', 'Priority', 'Score'))
+                if len(score_list[level]) <= 0:
+                    print('All tests passed')
+                else:
+                    for error in score_list[level]:
+                        print('%-40s' % (error[0]))
         else:
             print("All tests passed!")
 
