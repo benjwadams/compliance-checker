@@ -100,3 +100,6 @@ ENV/
 # netCDF Files
 *.nc
 conda-requirements.txt
+
+# coverage
+coverage.xml

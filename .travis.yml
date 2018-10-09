@@ -55,11 +55,12 @@ before_install:
 
 # Test source distribution.
 install:
+    - conda install codecov
     - python setup.py sdist && version=$(python setup.py --version) && pushd dist  && pip install compliance-checker-${version}.tar.gz --no-deps && popd
 
 script:
   - if [[ $TEST_TARGET == "default" ]]; then
-      py.test -k "not integration" -s -rxs -v ;
+      py.test --cov=compliance_checker -k "not integration" -s -rxs -v ;
     fi
 
   - if [[ $TEST_TARGET == "coding_standards" ]]; then
@@ -67,29 +68,35 @@ script:
     fi
 
   - if [[ $TEST_TARGET == "integration" ]]; then
-      py.test -m "integration" -s -rxs -v ;
+      py.test --cov=compliance_checker -m "integration" -s -rxs -v ;
     fi
 
   - if [[ $TEST_TARGET == 'cc-plugin-glider' ]]; then
       git clone https://github.com/ioos/cc-plugin-glider.git && cd cc-plugin-glider ;
       conda install --file requirements.txt --file requirements-dev.txt ;
-      py.test -s -rxs -v ;
+      py.test --cov=cc-plugin-glider -s -rxs -v ;
     fi
 
   - if [[ $TEST_TARGET == 'cc-plugin-ncei' ]]; then
       git clone https://github.com/ioos/cc-plugin-ncei.git && cd cc-plugin-ncei ;
       conda install --file requirements.txt --file requirements-dev.txt ;
-      py.test -s -rxs -v ;
+      py.test --cov=cc-plugin-ncei -s -rxs -v ;
     fi
 
   - if [[ $TEST_TARGET == 'cc-plugin-sgrid' ]]; then
       git clone https://github.com/ioos/cc-plugin-sgrid.git && cd cc-plugin-sgrid ;
       conda install --file requirements.txt --file requirements-dev.txt ;
-      py.test -s -rxs -v ;
+      py.test --cov=cc-plugin-sgrid -s -rxs -v ;
     fi
 
   - if [[ $TEST_TARGET == 'cc-checker-ugrid' ]]; then
       git clone https://github.com/ioos/cc-checker-ugrid.git && cd cc-checker-ugrid ;
       conda install --file requirements.txt --file requirements-dev.txt ;
-      py.test -s -rxs -v ;
+      py.test --cov=cc-checker-ugrid -s -rxs -v ;
     fi
+
+after_success:
+  - if [[ $TEST_TARGET == 'default' ]]; then
+      codecov
+    fi
+
