@@ -8,6 +8,7 @@ from lxml.etree import XPath
 from compliance_checker.acdd import ACDD1_3Check
 from compliance_checker.cfutil import get_geophysical_variables, get_instrument_variables
 from compliance_checker.cf.cf import CF1_6Check, CF1_7Check
+import re
 from rfc3986 import is_valid_uri
 
 
@@ -411,7 +412,9 @@ class IOOS1_2Check(IOOSNCCheck):
             'publisher_email',
             'publisher_institution',
             'publisher_url',
-            'standard_name_vocabulary',
+            # TODO: handle standard name table exclusion for v38?
+            ('standard_name_vocabulary',
+             re.compile(r'^CF Standard Name Table v[1-9]\d*$')),
             'summary',
             'title'
         ]
@@ -530,7 +533,7 @@ class IOOS1_2Check(IOOSNCCheck):
             return Result(BaseCheck.HIGH, False, "platform", ["A dataset must have a global attribute \"platform\""])
         else:
             return Result(BaseCheck.HIGH, True, "platform", [msg])
-        
+
     def _check_gts_ingest(self, attr, msg):
         """
         Helper function for check_gts_ingest().
@@ -549,7 +552,7 @@ class IOOS1_2Check(IOOSNCCheck):
         ):
             val = True
         else:
-            val = False   
+            val = False
         return Result(BaseCheck.HIGH, val, "gts_ingest", [msg])
 
     def check_gts_ingest(self, ds):

@@ -16,7 +16,14 @@ from compliance_checker.util import kvp_convert
 from collections import defaultdict
 from lxml import etree
 import sys
+import re
 
+# Python 3.5+ should work, also have a fallback
+try:
+    from typing import Pattern
+    re_pattern_type = Pattern
+except ImportError:
+    re_pattern_type = type(re.compile(''))
 
 def get_namespaces():
     n = Namespaces()
@@ -24,6 +31,33 @@ def get_namespaces():
     ns["ows"] = n.get_namespace("ows110")
     return ns
 
+class ValidationObject(object):
+    def __init__(self, validator_func, validator_fail_msg=None,
+                 expected_type=None):
+        """
+        Constructor takes two args, a validator func which takes a single
+        argument returning a boolean and a message upon failure
+        """
+        self.validator_func = validator_func
+        self.validator_fail_msg = validator_fail_msg
+        self.expected_type = expected_type
+        if expected_type is not None:
+            return validate_type
+
+    def validate():
+        if self.expected_type is not None:
+       function_res = []
+
+    def run_validator_function(self, input_name, input_value):
+        result = self.validator_func(input_value)
+
+    def validate_type_and_fn(self, input_name, input_value):
+        if not isinstance(input_value, expected_type):
+            return False, "Attribute {} should be instance of type {}".format(input_name,
+                                                                              self.expected_type)
+        else:
+            #return Function
+            pass
 
 # Simple class for Generic File type (default to this if file not recognised)
 class GenericFile(object):
@@ -332,6 +366,26 @@ def attr_check(kvp, ds, priority, ret_val, gname=None):
                 msgs
             )
         )
+    elif isinstance(other, re_pattern_type):
+        check_val = getattr(ds, name)
+        if not isinstance(check_val, str):
+            res = False
+            msgs = ["{} must be a string".format(name)]
+        elif not other.search(check_val):
+            res = False
+            msgs = ["{} must match regular expression {}".format(name, other)]
+        else:
+            res = True
+            msgs = []
+
+        ret_val.append(Result(
+            priority,
+            value=res,
+            name=gname if gname else name,
+            msgs=msgs
+        ))
+
+
     # if the attribute is a function, call it
     # right now only supports single attribute
     # important note: current magic approach uses all functions
