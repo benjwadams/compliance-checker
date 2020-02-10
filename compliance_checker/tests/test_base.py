@@ -113,6 +113,40 @@ class TestBase(TestCase):
                                                        [base.BaseCheck.HIGH]
                                                      ))
 
+        def test_email_validation(self):
+            test_attr_name = 'test'
+            validator = base.EmailValidator()
+            self.assertTrue(validator.validate(test_attr_name,
+                                               'foo@bar.com')[0])
+            bad_result = validator.validate(test_attr_name, 'foo@bar.com')
+            self.assertFalse(bad_result[0])
+            self.assertEqual(bad_result[1],
+                             "test must be a valid email address")
+
+        def test_phone_validation(self):
+            test_attr_name = 'test'
+            validator = base.PhoneNumberValidator()
+            self.assertTrue(validator.validate(test_attr_name,
+                                               "(240) 533-9444")[0])
+            bad_number = validator.validate(test_attr_name,
+                                            "99999999999999999999")
+            self.assertFalse(bad_number[0])
+            self.assertEqual(bad_number[1],
+                             "test does not appear to be a valid phone number")
+
+        def test_us_postal_code_validation(self):
+            test_attr_name = 'test'
+            validator = base.UsPostalCodeValidator()
+            self.assertTrue(validator.validate(test_attr_name,
+                                               "20910")[0])
+            self.assertTrue(validator.validate(test_attr_name,
+                                               "12201-7050")[0])
+            bad_number = validator.validate(test_attr_name,
+                                            "invalid-zip-code")
+            self.assertFalse(bad_number[0])
+            self.assertEqual(bad_number[1],
+                             "test must conform to US Postal Code rules")
+
 
 class TestGenericFile(TestCase):
     '''

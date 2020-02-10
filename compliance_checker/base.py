@@ -17,6 +17,8 @@ from collections import defaultdict
 from lxml import etree
 import sys
 import re
+from email.utils import parseaddr
+import phonenumbers
 
 # Python 3.5+ should work, also have a fallback
 try:
@@ -32,32 +34,62 @@ def get_namespaces():
     return ns
 
 class ValidationObject(object):
-    def __init__(self, validator_func, validator_fail_msg=None,
-                 expected_type=None):
-        """
-        Constructor takes two args, a validator func which takes a single
-        argument returning a boolean and a message upon failure
-        """
-        self.validator_func = validator_func
-        self.validator_fail_msg = validator_fail_msg
-        self.expected_type = expected_type
-        if expected_type is not None:
-            return validate_type
+    validator_fail_msg = ''
+    expected_type = None
 
-    def validate():
+    def validator_func(self, input_value):
+        raise NotImplementedError
+
+    def validate(self, input_name, input_value):
         if self.expected_type is not None:
-       function_res = []
-
-    def run_validator_function(self, input_name, input_value):
-        result = self.validator_func(input_value)
-
-    def validate_type_and_fn(self, input_name, input_value):
-        if not isinstance(input_value, expected_type):
-            return False, "Attribute {} should be instance of type {}".format(input_name,
-                                                                              self.expected_type)
+            type_result = self.validate_type(input_name, input_value)
+            if not type_result[0]:
+                return type_result
+        validator_result = self.validator_func(input_value)
+        if validator_result:
+            return True, None
         else:
-            #return Function
-            pass
+            return False, self.validator_fail_msg.format(input_name)
+
+    def validate_type(self, input_name, input_value):
+        if not isinstance(input_value, self.expected_type):
+            expected_type_fmt = "Attribute {} should be instance of type {}"
+            return (False,
+                    expected_type_fmt.format(input_name,
+                                             self.expected_type.__name__))
+        else:
+            return True, None
+
+class EmailValidator(ValidationObject):
+    validator_fail_msg = "{} must be a valid email address"
+    expected_type = str
+
+    def validator_func(self, input_value):
+        return parseaddr(input_value) != ("", "")
+
+class RegexValidator(ValidationObject):
+    expected_type = str
+    validator_regex = r'^.+$'
+    validator_fail_msg = "{} must not be an empty string"
+
+    def validator_func(self, input_value):
+        return bool(re.search(self.validator_regex, input_value))
+
+class UsPostalCodeValidator(RegexValidator):
+    validator_fail_msg = "{} must conform to US Postal Code rules"
+    validator_regex = r"^[0-9]{5}(?:-[0-9]{4})?$"
+
+class PhoneNumberValidator(ValidationObject):
+    validator_fail_msg = "{} does not appear to be a valid US telephone number"
+    expected_type = str
+
+    def validator_func(self, input_value):
+        try:
+            phonenumbers.parse(input_value, "US")
+        except phonenumbers.NumberParseException:
+            return False
+        else:
+            return True
 
 # Simple class for Generic File type (default to this if file not recognised)
 class GenericFile(object):
@@ -295,6 +327,13 @@ def xpath_check(tree, xpath):
     """Checks whether tree contains one or more elements matching xpath"""
     return len(xpath(tree)) > 0
 
+def maybe_get_global_attr(attr_name, ds):
+    if attr_name in ds.ncattrs():
+        return True, ds.getncattr(attr_name)
+    else:
+        err_msg = "{} not present"
+        return False, [err_msg.format(attr_name)]
+
 
 def attr_check(kvp, ds, priority, ret_val, gname=None):
     """
@@ -366,8 +405,32 @@ def attr_check(kvp, ds, priority, ret_val, gname=None):
                 msgs
             )
         )
+    # check if this is a class and subclass of ValidationObject
+    elif isinstance(other, type) and issubclass(other, ValidationObject):
+        attr_result = maybe_get_global_attr(name, ds)
+        if not attr_result[0]:
+            res_tup = attr_result
+        else:
+            check_val = attr_result[1]
+            check_result = other().validate(name, check_val)
+            if check_result[0]:
+                res_tup = True, []
+            else:
+                res_tup = False, [check_result[1]]
+        ret_val.append(
+            Result(
+                priority,
+                res_tup[0],
+                name,
+                res_tup[1]
+            )
+        )
     elif isinstance(other, re_pattern_type):
-        check_val = getattr(ds, name)
+        attr_result = maybe_get_global_attr(name, ds)
+        if not attr_result[0]:
+            return attr_result
+        else:
+            check_val = attr_result[1]
         if not isinstance(check_val, str):
             res = False
             msgs = ["{} must be a string".format(name)]
