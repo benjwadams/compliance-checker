@@ -27,6 +27,8 @@ import codecs
 import re
 import textwrap
 from pkg_resources import working_set
+import pickle
+from pathlib import Path
 
 
 # Ensure output is encoded as Unicode when checker output is redirected or piped
@@ -48,6 +50,49 @@ def extract_docstring_summary(docstring):
                   textwrap.dedent(re.split(r'\n\s*:\w', docstring,
                                            flags=re.MULTILINE)[0]).strip(),
                   flags=re.MULTILINE)
+
+class Storage(object):
+    _state_keeper = {}
+    cache_dir = Path(Path(__file__).parent, 'cache')
+
+    def __init__(self):
+        self.__dict__ = self._state_keeper
+
+class SingletonStorage(Storage):
+
+    def fetch_web_resource(self, key_name, url, response_type="xml"):
+        if key_name in self._state_keeper:
+            return self._state_keeper[key_name]
+
+        response_var = None
+        try:
+            resp = requests.get(url, timeout=10)
+            resp.raise_for_status()
+        except requests.RequestException as e:
+            warnings.warn("Request failed, attempting to fall back to any "
+                          "cached resources.\n{}".format(str(e)))
+            fetch_cached_resource()
+        else:
+            self._state_keeper[key_name] = self.process_response(resp.text,
+                                                                 "xml")
+
+
+    def process_response(self, text, content_type="xml"):
+        if content_type == "xml":
+            try:
+                tree = ET.fromstring(text)
+            except ET.ParseError():
+                warnings.warn("Could not parse XML, returning None")
+                return None
+            else:
+                return {'contents': tree, 'format': content_type}
+
+
+
+    def fetch_cached_resource(self, key_name, reraise_exception=True):
+        if key_name in self._state_keeper:
+            return self._state_keeper[key_name]
+
 
 class CheckSuite(object):
 
